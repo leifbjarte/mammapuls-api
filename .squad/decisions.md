@@ -493,6 +493,11 @@ For comparison, the Aspire defaults would cost far more: App Service P0v3 is $65
 **What:** `aspire deploy` runs when a GitHub release is published (release-please creates releases with RELEASE_PLEASE_TOKEN, so the event fires). Manual `workflow_dispatch` stays as a fallback.
 **Why:** User request
 
+### 2026-09-29T22:27:01+02:00: User directive — Test environment deployed on merge to main
+**By:** Leif Bjarte Johansson (via Copilot)
+**What:** Two GitHub/Azure environments: `test` (deployed on every push/merge to `main`, for trying new features) and `production` (deployed on published release). Cheapest-resources rule still applies to both. Federated credential subjects use the immutable format `repo:leifbjarte@3626592/mammapuls-api@1395337484:environment:<env>`.
+**Why:** User request
+
 ## Governance
 
 - All meaningful changes require team consensus

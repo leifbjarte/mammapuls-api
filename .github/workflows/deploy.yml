@@ -1,33 +1,51 @@
 name: Deploy
 
+# push to main -> test, published release -> production, manual -> chosen.
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.squad/**'
+      - '.github/agents/**'
+      - '.github/skills/**'
+      - '.copilot/**'
+      - '.vscode/**'
+      - '.mcp.json'
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [test, production]
+        default: test
 
 permissions:
   id-token: write
   contents: read
 
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false
-
 jobs:
   deploy:
     # `published` also fires for prereleases; drafts never ship.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.release.prerelease == false && github.event.release.draft == false)
+      github.event_name != 'release' ||
+      (!github.event.release.prerelease && !github.event.release.draft)
     runs-on: ubuntu-latest
-    environment: production
+    # `environment` and `concurrency` can't read `env`, so the target expression is repeated.
+    environment: ${{ inputs.environment || (github.event_name == 'release' && 'production' || 'test') }}
+    concurrency:
+      group: deploy-${{ inputs.environment || (github.event_name == 'release' && 'production' || 'test') }}
+      cancel-in-progress: false
     env:
+      TARGET_ENV: ${{ inputs.environment || (github.event_name == 'release' && 'production' || 'test') }}
       ASPIRE_VERSION: 13.5.4
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
       # Environment-scoped vars are invisible to job-level `if`, so the guard runs as a step.
-      - name: Preflight — is the production environment configured?
+      - name: Preflight — is the ${{ env.TARGET_ENV }} environment configured?
         id: preflight
         env:
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
@@ -39,7 +57,7 @@ jobs:
           VIPPS_CLIENT_SECRET_SET: ${{ secrets.VIPPS_CLIENT_SECRET != '' }}
         run: |
           if [ -z "$AZURE_CLIENT_ID" ]; then
-            msg="Azure setup not done (AZURE_CLIENT_ID is empty in the 'production' environment). Skipping deploy."
+            msg="Azure setup not done (AZURE_CLIENT_ID is empty in the '$TARGET_ENV' environment). Skipping deploy."
             echo "::notice title=Deploy skipped::$msg"
             echo "### Deploy skipped" >> "$GITHUB_STEP_SUMMARY"
             echo "$msg" >> "$GITHUB_STEP_SUMMARY"
@@ -52,15 +70,21 @@ jobs:
           done
           [ "$VIPPS_CLIENT_SECRET_SET" = "true" ] || missing+=("VIPPS_CLIENT_SECRET (secret)")
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error title=Incomplete production config::Missing: ${missing[*]}"
+            echo "::error title=Incomplete $TARGET_ENV config::Missing: ${missing[*]}"
             exit 1
           fi
+          case "$TARGET_ENV" in
+            production) aspire_env=Production ;;
+            test) aspire_env=Test ;;
+            *) echo "::error::Unknown environment '$TARGET_ENV'"; exit 1 ;;
+          esac
+          echo "aspire-environment=$aspire_env" >> "$GITHUB_OUTPUT"
           echo "configured=true" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v7
         if: steps.preflight.outputs.configured == 'true'
         with:
-          ref: ${{ github.event_name == 'release' && format('refs/tags/{0}', github.event.release.tag_name) || github.ref }}
+          ref: ${{ github.event_name == 'release' && format('refs/tags/{0}', github.event.release.tag_name) || github.sha }}
           persist-credentials: false
 
       - uses: actions/setup-dotnet@v6
@@ -88,8 +112,10 @@ jobs:
 
       - name: Deploy with Aspire
         if: steps.preflight.outputs.configured == 'true'
-        run: aspire deploy --apphost src/Mammapuls.AppHost/Mammapuls.AppHost.csproj --environment Production --non-interactive
+        # The Aspire environment picks Cosmos mode (free tier vs serverless) and the Vipps authority in AppHost.cs.
+        run: aspire deploy --apphost src/Mammapuls.AppHost/Mammapuls.AppHost.csproj --environment "$APPHOST_ENVIRONMENT" --non-interactive
         env:
+          APPHOST_ENVIRONMENT: ${{ steps.preflight.outputs.aspire-environment }}
           Azure__SubscriptionId: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           Azure__TenantId: ${{ vars.AZURE_TENANT_ID }}
           Azure__Location: swedencentral
