@@ -14,13 +14,17 @@ public static class AuthEndpoints
             .AllowAnonymous()
             .WithName("Login")
             .WithSummary("Start Vipps login; redirects back to returnUrl (local path or allowed SPA origin)")
-            .WithTags("Auth");
+            .WithTags("Auth")
+            .Produces(StatusCodes.Status302Found)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
         group.MapPost("/auth/logout", (Func<HttpContext, Task<NoContent>>)LogoutAsync)
             .AllowAnonymous()
             .WithName("Logout")
             .WithSummary("Sign out of the Mammapuls session (does not sign out of Vipps)")
-            .WithTags("Auth");
+            .WithTags("Auth")
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         return group;
     }

@@ -24,3 +24,4 @@
 - User store: `Users/` folder, `CosmosUserStore` singleton; upsert = Patch (keeps CreatedAt) → Create on 404 → retry Patch on 409.
 - Running `dotnet build` while other agents build concurrently can fail silently (exit 1, no output) — re-run.
 - 2026-09-29T15:41:34+02:00: Hashing composite keys needs an injective encoding — `CreateId` now hashes `{issuer.Length}:{issuer}{subject.Length}:{subject}` (a bare `|` separator let ("a|b","c") collide with ("a","b|c")).
+- 2026-09-29T22:27:01+02:00: Aspire publish does NOT pass the deploy environment to project containers (they default to Production) — AppHost sets `ASPNETCORE_ENVIRONMENT` in publish mode; Scalar at `/scalar/v1` (Dev/Test) gets the CSRF header via a required OpenAPI header param with default, and unmatched routes return 401 (not 404) to anonymous callers because of the fallback policy.
