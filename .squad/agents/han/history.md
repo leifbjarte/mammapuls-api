@@ -23,3 +23,4 @@
 - Cosmos serializer set to STJ web defaults via `CosmosClientOptions.UseSystemTextJsonSerializerWithOptions` → camelCase, `Id` → `id`; patch paths must be camelCase.
 - User store: `Users/` folder, `CosmosUserStore` singleton; upsert = Patch (keeps CreatedAt) → Create on 404 → retry Patch on 409.
 - Running `dotnet build` while other agents build concurrently can fail silently (exit 1, no output) — re-run.
+- 2026-09-29T15:41:34+02:00: Hashing composite keys needs an injective encoding — `CreateId` now hashes `{issuer.Length}:{issuer}{subject.Length}:{subject}` (a bare `|` separator let ("a|b","c") collide with ("a","b|c")).

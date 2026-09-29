@@ -13,7 +13,8 @@ public sealed class CosmosUserStore(Container container, TimeProvider timeProvid
     {
         ArgumentException.ThrowIfNullOrEmpty(issuer);
         ArgumentException.ThrowIfNullOrEmpty(subject);
-        return Base64Url.EncodeToString(SHA256.HashData(Encoding.UTF8.GetBytes($"{issuer}|{subject}")));
+        // Length-prefixed so no (issuer, subject) pair can share hash input with another.
+        return Base64Url.EncodeToString(SHA256.HashData(Encoding.UTF8.GetBytes($"{issuer.Length}:{issuer}{subject.Length}:{subject}")));
     }
 
     public async Task<AppUser> UpsertFromLoginAsync(string issuer, string subject, string? name, string? email, string? phoneNumber, CancellationToken cancellationToken)
