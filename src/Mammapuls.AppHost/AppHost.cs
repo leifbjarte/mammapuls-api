@@ -2,8 +2,12 @@ using Azure.Provisioning.AppContainers;
 using Azure.Provisioning.CosmosDB;
 using Azure.Provisioning.OperationalInsights;
 using Azure.Provisioning.Storage;
+using Microsoft.Extensions.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
+
+// `aspire deploy --environment <Name>` sets the AppHost environment; the CLI default is Production.
+var isProduction = builder.Environment.IsProduction();
 
 builder.AddAzureContainerAppEnvironment("aca")
     .WithDashboard(false)
@@ -19,9 +23,15 @@ var cosmos = builder.AddAzureCosmosDB("cosmos")
     .RunAsPreviewEmulator(emulator => emulator.WithDataExplorer())
     .ConfigureInfrastructure(infra =>
     {
+        // Free tier is one account per subscription and belongs to production; other environments keep Aspire's serverless default.
+        if (!isProduction)
+        {
+            return;
+        }
+
         var resources = infra.GetProvisionableResources();
 
-        // Free tier can only be set at account creation and is incompatible with serverless (Aspire's default).
+        // Free tier can only be set at account creation and is incompatible with serverless.
         var account = resources.OfType<CosmosDBAccount>().Single();
         account.Capabilities.Clear();
         account.IsFreeTierEnabled = true;
@@ -50,6 +60,9 @@ var dataProtection = storage.AddBlobContainer("dataprotection");
 var vippsClientId = builder.AddParameter("vipps-client-id");
 var vippsClientSecret = builder.AddParameter("vipps-client-secret", secret: true);
 var spaOrigin = builder.AddParameter("spa-origin");
+var vippsAuthority = isProduction
+    ? "https://api.vipps.no/access-management-1.0/access/"
+    : "https://apitest.vipps.no/access-management-1.0/access/";
 
 builder.AddProject<Projects.Mammapuls_Api>("api")
     .WithExternalHttpEndpoints()
@@ -59,6 +72,7 @@ builder.AddProject<Projects.Mammapuls_Api>("api")
     .WithReference(dataProtection).WaitFor(dataProtection)
     // Delegator is needed for user-delegation SAS on media.
     .WithRoleAssignments(storage, StorageBuiltInRole.StorageBlobDataContributor, StorageBuiltInRole.StorageBlobDelegator)
+    .WithEnvironment("Authentication__Vipps__Authority", vippsAuthority)
     .WithEnvironment("Authentication__Vipps__ClientId", vippsClientId)
     .WithEnvironment("Authentication__Vipps__ClientSecret", vippsClientSecret)
     .WithEnvironment("Cors__AllowedOrigins__0", spaOrigin)
