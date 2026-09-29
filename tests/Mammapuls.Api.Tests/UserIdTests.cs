@@ -18,7 +18,7 @@ public sealed class UserIdTests
     public void CreateId_MatchesPinnedValue()
     {
         // Changing the derivation orphans every stored user; this vector was computed independently.
-        Assert.Equal("vmCwQzG6pQziN0_SAx9GTcMLpMJBCUwROBgqNO7Zitw", CosmosUserStore.CreateId(ProdIssuer, Subject));
+        Assert.Equal("3t5R30ZGIHtecvWUEkNelFr-DsLpM0q3URzGVaXHNgw", CosmosUserStore.CreateId(ProdIssuer, Subject));
     }
 
     [Fact]
@@ -31,6 +31,12 @@ public sealed class UserIdTests
     public void CreateId_DiffersAcrossSubjects()
     {
         Assert.NotEqual(CosmosUserStore.CreateId(ProdIssuer, Subject), CosmosUserStore.CreateId(ProdIssuer, Subject + "x"));
+    }
+
+    [Fact]
+    public void CreateId_SeparatorInComponentsDoesNotCollide()
+    {
+        Assert.NotEqual(CosmosUserStore.CreateId("a|b", "c"), CosmosUserStore.CreateId("a", "b|c"));
     }
 
     [Fact]
