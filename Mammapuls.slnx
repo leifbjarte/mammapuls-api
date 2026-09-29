@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Mammapuls.Api/Mammapuls.Api.csproj" />
+    <Project Path="src/Mammapuls.AppHost/Mammapuls.AppHost.csproj" />
+    <Project Path="src/Mammapuls.ServiceDefaults/Mammapuls.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Mammapuls.Api.Tests/Mammapuls.Api.Tests.csproj" />
+  </Folder>
+</Solution>

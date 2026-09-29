@@ -1,0 +1,22 @@
+{
+  "universe_usage_history": [
+    {
+      "universe": "Star Wars",
+      "assignment_id": "mammapuls-api-init-20260929",
+      "used_at": "2026-09-29T15:23:39+02:00"
+    }
+  ],
+  "assignment_cast_snapshots": {
+    "mammapuls-api-init-20260929": {
+      "universe": "Star Wars",
+      "agents": {
+        "lead": "Leia",
+        "backend": "Han",
+        "devops": "Lando",
+        "security": "Ackbar",
+        "tester": "R2"
+      },
+      "created_at": "2026-09-29T15:23:39+02:00"
+    }
+  }
+}

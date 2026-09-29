@@ -1,0 +1,35 @@
+@Mammapuls.Api_HostAddress = http://localhost:5186
+@Mammapuls.Api_HttpsAddress = https://localhost:7176
+
+### Ping
+GET {{Mammapuls.Api_HostAddress}}/api/v1/ping
+Accept: application/json
+
+### OpenAPI document (Development only)
+GET {{Mammapuls.Api_HostAddress}}/openapi/v1.json
+
+### Health (Development only)
+GET {{Mammapuls.Api_HostAddress}}/health
+
+### Login — open this URL in a browser (redirects to Vipps test, then back to returnUrl)
+GET {{Mammapuls.Api_HttpsAddress}}/api/v1/auth/login?returnUrl=http://localhost:5173/
+
+### Login with a disallowed returnUrl — expect 400
+GET {{Mammapuls.Api_HttpsAddress}}/api/v1/auth/login?returnUrl=https://evil.example/
+
+### Me — expect 401 without the session cookie
+GET {{Mammapuls.Api_HttpsAddress}}/api/v1/me
+Accept: application/json
+
+### Logout — X-Requested-With is required on non-GET requests (CSRF defence)
+POST {{Mammapuls.Api_HttpsAddress}}/api/v1/auth/logout
+X-Requested-With: XMLHttpRequest
+
+### Logout without the CSRF header — expect 400
+POST {{Mammapuls.Api_HttpsAddress}}/api/v1/auth/logout
+
+### Delete my account (GDPR) — requires session cookie
+DELETE {{Mammapuls.Api_HttpsAddress}}/api/v1/me
+X-Requested-With: XMLHttpRequest
+
+###

@@ -1,0 +1,5 @@
+{
+  "appHost": {
+    "path": "src/Mammapuls.AppHost/Mammapuls.AppHost.csproj"
+  }
+}
