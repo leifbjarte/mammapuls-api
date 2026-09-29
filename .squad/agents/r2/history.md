@@ -18,3 +18,10 @@
   - Stop OIDC discovery by calling `Configure<OpenIdConnectOptions>("Vipps", o => o.Configuration = ...)`. This must be Configure, not PostConfigure: the handler's post-configure builds the ConfigurationManager first.
   - `UseSetting` overrides appsettings.Development.json and is visible to Program's early config reads.
   - The run_in_terminal sync mode lost dotnet output here; async mode + kill worked.
+- 2026-09-29T23:28:52+02:00 — MockLoginTests.cs (21 tests, suite now 71, all pass).
+  - Configure test mock users at high list indices (`Users:90`, `Users:91`) so they append to, rather than merge field-by-field with, the users in appsettings.Development.json.
+  - Use a fresh `new ApiFactory()` as the root when asserting on seeding (or its absence), because `WithWebHostBuilder` derived hosts share the root's `Users` store.
+  - "Not mapped" means 401 for anonymous callers, since the fallback auth policy runs before routing reports 404. Assert 404 with a signed-in cookie.
+  - Startup failures from `WebApplicationFactory` may arrive wrapped. Walk the Inner/AggregateException chain for the expected `InvalidOperationException`.
+
+📌 Team update (2026-09-29T23:28:52+02:00): Mock login removed before commit because the Vipps keys arrived; MockLoginTests and the rate limiter are gone and the suite is 50/50 — decided by Han
