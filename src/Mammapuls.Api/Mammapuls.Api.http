@@ -5,8 +5,12 @@
 GET {{Mammapuls.Api_HostAddress}}/api/v1/ping
 Accept: application/json
 
-### OpenAPI document (Development only)
+### OpenAPI document (Development and Test only)
 GET {{Mammapuls.Api_HostAddress}}/openapi/v1.json
+
+### Scalar API reference (Development and Test only) — open in a browser; sign in first via
+### {{Mammapuls.Api_HttpsAddress}}/api/v1/auth/login?returnUrl=/scalar/v1 so the session cookie is sent
+GET {{Mammapuls.Api_HttpsAddress}}/scalar/v1
 
 ### Health (Development only)
 GET {{Mammapuls.Api_HostAddress}}/health

@@ -14,12 +14,15 @@ public static class MeEndpoints
         group.MapGet("/me", GetAsync)
             .WithName("GetMe")
             .WithSummary("Get the signed-in user's profile")
-            .WithTags("Me");
+            .WithTags("Me")
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         group.MapDelete("/me", DeleteAsync)
             .WithName("DeleteMe")
             .WithSummary("Delete the signed-in user's account and data (GDPR) and sign out")
-            .WithTags("Me");
+            .WithTags("Me")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         return group;
     }

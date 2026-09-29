@@ -1,6 +1,7 @@
 using Mammapuls.Api.Auth;
 using Mammapuls.Api.Endpoints;
 using Mammapuls.Api.Media;
+using Mammapuls.Api.OpenApi;
 using Mammapuls.Api.Users;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,7 +12,7 @@ builder.AddUserStore();
 builder.AddMediaStorage();
 
 builder.Services.AddProblemDetails();
-builder.Services.AddOpenApi();
+builder.AddMammapulsOpenApi();
 
 var app = builder.Build();
 
@@ -20,10 +21,7 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseMammapulsAuth();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi().AllowAnonymous();
-}
+app.MapMammapulsApiReference();
 
 app.MapGroup("/api/v1")
     .MapPingEndpoints()

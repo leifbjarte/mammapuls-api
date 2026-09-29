@@ -76,6 +76,14 @@ builder.AddProject<Projects.Mammapuls_Api>("api")
     .WithEnvironment("Authentication__Vipps__ClientId", vippsClientId)
     .WithEnvironment("Authentication__Vipps__ClientSecret", vippsClientSecret)
     .WithEnvironment("Cors__AllowedOrigins__0", spaOrigin)
+    // Aspire doesn't pass the deploy environment to the container, which would otherwise default to Production.
+    .WithEnvironment(context =>
+    {
+        if (context.ExecutionContext.IsPublishMode)
+        {
+            context.EnvironmentVariables["ASPNETCORE_ENVIRONMENT"] = builder.Environment.EnvironmentName;
+        }
+    })
     .PublishAsAzureContainerApp((_, app) =>
     {
         app.Template.Scale = new ContainerAppScale { MinReplicas = 0, MaxReplicas = 2 };
