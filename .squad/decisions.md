@@ -488,6 +488,11 @@ For comparison, the Aspire defaults would cost far more: App Service P0v3 is $65
 - **Deferred:** AppHost integration tests (`Aspire.Hosting.Testing`). They need Docker for the Cosmos and Azurite emulators, and CI has none today. They are also deferred for `CosmosUserStore` against the emulator (patch/create race, 404 handling).
 **Why:** Fast, deterministic tests that CI can run without Azure, Docker or Vipps credentials, covering the auth, CSRF, CORS, open-redirect and cross-user boundaries.
 
+### 2026-09-29T15:41:34+02:00: User directive — deploy on GitHub release
+**By:** Leif Bjarte Johansson (via Copilot)
+**What:** `aspire deploy` runs when a GitHub release is published (release-please creates releases with RELEASE_PLEASE_TOKEN, so the event fires). Manual `workflow_dispatch` stays as a fallback.
+**Why:** User request
+
 ## Governance
 
 - All meaningful changes require team consensus

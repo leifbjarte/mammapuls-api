@@ -1,6 +1,8 @@
 name: Deploy
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -13,6 +15,10 @@ concurrency:
 
 jobs:
   deploy:
+    # `published` also fires for prereleases; drafts never ship.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.release.prerelease == false && github.event.release.draft == false)
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -20,18 +26,60 @@ jobs:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
+      # Environment-scoped vars are invisible to job-level `if`, so the guard runs as a step.
+      - name: Preflight — is the production environment configured?
+        id: preflight
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          VIPPS_CLIENT_ID: ${{ vars.VIPPS_CLIENT_ID }}
+          SPA_ORIGIN: ${{ vars.SPA_ORIGIN }}
+          VIPPS_CLIENT_SECRET_SET: ${{ secrets.VIPPS_CLIENT_SECRET != '' }}
+        run: |
+          if [ -z "$AZURE_CLIENT_ID" ]; then
+            msg="Azure setup not done (AZURE_CLIENT_ID is empty in the 'production' environment). Skipping deploy."
+            echo "::notice title=Deploy skipped::$msg"
+            echo "### Deploy skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          missing=()
+          for name in AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP VIPPS_CLIENT_ID SPA_ORIGIN; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          [ "$VIPPS_CLIENT_SECRET_SET" = "true" ] || missing+=("VIPPS_CLIENT_SECRET (secret)")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error title=Incomplete production config::Missing: ${missing[*]}"
+            exit 1
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v7
+        if: steps.preflight.outputs.configured == 'true'
+        with:
+          ref: ${{ github.event_name == 'release' && format('refs/tags/{0}', github.event.release.tag_name) || github.ref }}
+          persist-credentials: false
 
       - uses: actions/setup-dotnet@v6
+        if: steps.preflight.outputs.configured == 'true'
         with:
           dotnet-version: 10.0.x
 
+      - name: Test
+        if: steps.preflight.outputs.configured == 'true'
+        run: dotnet test Mammapuls.slnx --configuration Release
+
       - name: Install Aspire CLI
+        if: steps.preflight.outputs.configured == 'true'
         run: |
           curl -sSL https://aspire.dev/install.sh | bash -s -- --version "$ASPIRE_VERSION"
           echo "$HOME/.aspire/bin" >> "$GITHUB_PATH"
 
       - name: Azure login (OIDC)
+        if: steps.preflight.outputs.configured == 'true'
         uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -39,6 +87,7 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy with Aspire
+        if: steps.preflight.outputs.configured == 'true'
         run: aspire deploy --apphost src/Mammapuls.AppHost/Mammapuls.AppHost.csproj --environment Production --non-interactive
         env:
           Azure__SubscriptionId: ${{ vars.AZURE_SUBSCRIPTION_ID }}
