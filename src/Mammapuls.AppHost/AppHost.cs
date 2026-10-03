@@ -45,6 +45,7 @@ var cosmos = builder.AddAzureCosmosDB("cosmos")
 var database = cosmos.AddCosmosDatabase("mammapuls");
 var users = database.AddContainer("users", "/id");
 var onboarding = database.AddContainer("onboarding", "/userId");
+var checkIns = database.AddContainer("checkins", "/userId");
 
 var storage = builder.AddAzureStorage("storage")
     .RunAsEmulator()
@@ -70,6 +71,7 @@ builder.AddProject<Projects.Mammapuls_Api>("api")
     .WithHttpHealthCheck("/health")
     .WithReference(users).WaitFor(users)
     .WithReference(onboarding).WaitFor(onboarding)
+    .WithReference(checkIns).WaitFor(checkIns)
     .WithReference(media).WaitFor(media)
     .WithReference(dataProtection).WaitFor(dataProtection)
     // Delegator is needed for user-delegation SAS on media.

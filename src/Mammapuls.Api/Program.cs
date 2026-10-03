@@ -1,4 +1,5 @@
 using Mammapuls.Api.Auth;
+using Mammapuls.Api.CheckIns;
 using Mammapuls.Api.Endpoints;
 using Mammapuls.Api.Media;
 using Mammapuls.Api.Onboarding;
@@ -13,6 +14,7 @@ builder.AddServiceDefaults();
 builder.AddMammapulsAuth();
 builder.AddUserStore();
 builder.AddOnboardingStore();
+builder.AddCheckInStore();
 builder.AddMediaStorage();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false)));
@@ -33,7 +35,8 @@ app.MapGroup("/api/v1")
     .MapPingEndpoints()
     .MapAuthEndpoints()
     .MapMeEndpoints()
-    .MapOnboardingEndpoints();
+    .MapOnboardingEndpoints()
+    .MapCheckInEndpoints();
 
 app.MapDefaultEndpoints();
 

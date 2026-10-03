@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Mammapuls.Api.Validation;
 
 namespace Mammapuls.Api.Onboarding;
 
@@ -50,7 +51,7 @@ public enum FoodAndExerciseRelationship
     VeryDifficult,
 }
 
-public sealed record OnboardingRequest
+public sealed record OnboardingRequest : IBodyMeasurements
 {
     [Description("Fullt navn")]
     public string? FullName { get; init; }

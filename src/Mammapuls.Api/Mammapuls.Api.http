@@ -77,3 +77,36 @@ GET {{Mammapuls.Api_HttpsAddress}}/api/v1/me/onboarding
 Accept: application/json
 
 ###
+
+
+### Save or replace my weekly check-in (ISO week) — requires session cookie
+PUT {{Mammapuls.Api_HttpsAddress}}/api/v1/me/check-ins/2026-W01
+Content-Type: application/json
+X-Requested-With: XMLHttpRequest
+
+{
+  "fullName": "Kari Nordmann",
+  "weightKg": 72.5,
+  "waistCm": 82.5,
+  "hipCm": 101.5,
+  "chestCm": 94.5,
+  "averageStepsPerDay": 8500,
+  "averageKcalPerDay": 1800,
+  "proteinTargetDays": 5,
+  "proteinChallenge": "Travel",
+  "calorieTargetDays": 6,
+  "calorieChallenge": null,
+  "strengthSessions": "three",
+  "intervalSessions": "one",
+  "stressLevel": 6,
+  "sleepQuality": 7,
+  "whatWorkedWell": "Meal prep",
+  "whatWasChallenging": "Evenings",
+  "needHelpWith": "Nothing"
+}
+
+### Read one check-in / list all — requires session cookie
+GET {{Mammapuls.Api_HttpsAddress}}/api/v1/me/check-ins/2026-W01
+
+###
+GET {{Mammapuls.Api_HttpsAddress}}/api/v1/me/check-ins

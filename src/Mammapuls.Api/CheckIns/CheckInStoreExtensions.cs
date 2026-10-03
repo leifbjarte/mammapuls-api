@@ -2,13 +2,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace Mammapuls.Api.Onboarding;
+namespace Mammapuls.Api.CheckIns;
 
-public static class OnboardingStoreExtensions
+public static class CheckInStoreExtensions
 {
-    public const string ContainerConnectionName = "onboarding";
+    public const string ContainerConnectionName = "checkins";
 
-    public static IHostApplicationBuilder AddOnboardingStore(this IHostApplicationBuilder builder)
+    public static IHostApplicationBuilder AddCheckInStore(this IHostApplicationBuilder builder)
     {
         var serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         serializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
@@ -18,7 +18,7 @@ public static class OnboardingStoreExtensions
             configureClientOptions: options => options.UseSystemTextJsonSerializerWithOptions = serializerOptions);
 
         builder.Services.TryAddSingleton(TimeProvider.System);
-        builder.Services.AddSingleton<IOnboardingStore, CosmosOnboardingStore>();
+        builder.Services.AddSingleton<ICheckInStore, CosmosCheckInStore>();
         return builder;
     }
 }

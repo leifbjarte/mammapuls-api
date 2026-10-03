@@ -3,6 +3,7 @@ using System.Text.Json;
 using Mammapuls.Api.Auth;
 using Mammapuls.Api.Onboarding;
 using Mammapuls.Api.Users;
+using Mammapuls.Api.Validation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -15,13 +16,6 @@ namespace Mammapuls.Api.Endpoints;
 public static class OnboardingEndpoints
 {
     private const int MaxRequestBodyBytes = 80 * 1024;
-    private static readonly string[] EnumFieldNames =
-    [
-        "sleepPerNight",
-        "stepsPerDay",
-        "trainingDaysPerWeek",
-        "foodAndExerciseRelationship",
-    ];
 
     public static RouteGroupBuilder MapOnboardingEndpoints(this RouteGroupBuilder group)
     {
@@ -59,39 +53,14 @@ public static class OnboardingEndpoints
         IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions> jsonOptions,
         CancellationToken cancellationToken)
     {
-        context.Response.Headers.CacheControl = "no-store";
-        if (!context.Request.HasJsonContentType())
+        var body = await JsonBodyReader.ReadAsync<OnboardingRequest>(context, jsonOptions.Value.SerializerOptions, MaxRequestBodyBytes, cancellationToken);
+        if (body.Problem is not null)
         {
-            return TypedResults.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType);
+            return body.Problem;
         }
 
-        if (context.Request.ContentLength > MaxRequestBodyBytes)
-        {
-            return TypedResults.Problem(statusCode: StatusCodes.Status413PayloadTooLarge);
-        }
-
-        OnboardingRequest? request;
-        HashSet<string> combinedEnumFields;
-        try
-        {
-            using var document = await JsonDocument.ParseAsync(context.Request.Body, cancellationToken: cancellationToken);
-            combinedEnumFields = FindCombinedEnumFields(document.RootElement);
-            request = document.RootElement.Deserialize<OnboardingRequest>(jsonOptions.Value.SerializerOptions);
-        }
-        catch (Microsoft.AspNetCore.Http.BadHttpRequestException exception) when (exception.StatusCode == StatusCodes.Status413PayloadTooLarge)
-        {
-            return TypedResults.Problem(statusCode: StatusCodes.Status413PayloadTooLarge);
-        }
-        catch (Exception exception) when (exception is JsonException or NotSupportedException)
-        {
-            return TypedResults.Problem(statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        if (request is null)
-        {
-            return TypedResults.Problem(statusCode: StatusCodes.Status400BadRequest);
-        }
-
+        var request = body.Value!;
+        var combinedEnumFields = body.CombinedEnumFields;
         var userId = principal.GetUserId();
 
         if (await users.GetAsync(userId, cancellationToken) is null)
@@ -130,138 +99,45 @@ public static class OnboardingEndpoints
     private static OnboardingRequest Normalize(OnboardingRequest request) => request with
     {
         FullName = request.FullName?.Trim(),
-        AllergyDetails = NormalizeOptional(request.AllergyDetails),
-        InjuryDetails = NormalizeOptional(request.InjuryDetails),
-        PreviousWeightLossExperience = NormalizeOptional(request.PreviousWeightLossExperience),
+        AllergyDetails = RequestText.NormalizeOptional(request.AllergyDetails),
+        InjuryDetails = RequestText.NormalizeOptional(request.InjuryDetails),
+        PreviousWeightLossExperience = RequestText.NormalizeOptional(request.PreviousWeightLossExperience),
         GoalAfterEightWeeks = request.GoalAfterEightWeeks?.Trim(),
         BiggestChallenge = request.BiggestChallenge?.Trim(),
         AnythingElseForCoach = request.AnythingElseForCoach?.Trim(),
     };
 
-    private static string? NormalizeOptional(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
     private static Dictionary<string, string[]> Validate(OnboardingRequest request, HashSet<string> combinedEnumFields)
     {
-        var errors = new Dictionary<string, string[]>();
+        var v = new RequestValidator(combinedEnumFields);
 
-        void AddError(string field, string message) =>
-            errors[JsonNamingPolicy.CamelCase.ConvertName(field)] = [message];
+        v.RequiredText(nameof(request.FullName), request.FullName, 200);
+        v.Range(nameof(request.Age), request.Age, 15, 120);
+        v.RequiredEnum(nameof(request.SleepPerNight), request.SleepPerNight);
+        v.StressLevel(request.StressLevel);
+        v.BodyMeasurements(request);
+        v.RangeDecimal(nameof(request.HeightCm), request.HeightCm, 100, 250);
+        v.RequiredValue(nameof(request.CanJogComfortably), request.CanJogComfortably);
+        v.RequiredEnum(nameof(request.StepsPerDay), request.StepsPerDay);
+        v.RequiredEnum(nameof(request.TrainingDaysPerWeek), request.TrainingDaysPerWeek);
+        v.RequiredValue(nameof(request.IsVegetarian), request.IsVegetarian);
+        v.RequiredValue(nameof(request.IsPescetarian), request.IsPescetarian);
+        v.RequiredValue(nameof(request.IsBreastfeeding), request.IsBreastfeeding);
+        v.RequiredValue(nameof(request.HasAllergies), request.HasAllergies);
+        v.OptionalDetails(nameof(request.AllergyDetails), request.AllergyDetails, request.HasAllergies);
+        v.RequiredValue(nameof(request.HasInjuries), request.HasInjuries);
+        v.OptionalDetails(nameof(request.InjuryDetails), request.InjuryDetails, request.HasInjuries);
+        v.RequiredValue(nameof(request.HasTriedWeightLossBefore), request.HasTriedWeightLossBefore);
+        v.OptionalDetails(nameof(request.PreviousWeightLossExperience), request.PreviousWeightLossExperience, request.HasTriedWeightLossBefore);
+        v.RequiredEnum(nameof(request.FoodAndExerciseRelationship), request.FoodAndExerciseRelationship);
+        v.RequiredValue(nameof(request.HasHadEatingDisorder), request.HasHadEatingDisorder);
+        v.Range(nameof(request.HealthSatisfaction), request.HealthSatisfaction, 1, 10);
+        v.Range(nameof(request.ProgramMotivation), request.ProgramMotivation, 1, 10);
+        v.RequiredText(nameof(request.GoalAfterEightWeeks), request.GoalAfterEightWeeks, 2000);
+        v.RequiredText(nameof(request.BiggestChallenge), request.BiggestChallenge, 2000);
+        v.RequiredText(nameof(request.AnythingElseForCoach), request.AnythingElseForCoach, 2000);
 
-        void RequiredText(string field, string? value, int maxLength)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                AddError(field, "This field is required and must not be blank.");
-            }
-            else if (value.Length > maxLength)
-            {
-                AddError(field, $"Must be at most {maxLength} characters.");
-            }
-        }
-
-        void RequiredValue<T>(string field, T? value) where T : struct
-        {
-            if (value is null)
-            {
-                AddError(field, "This field is required.");
-            }
-        }
-
-        void RequiredEnum<T>(string field, T? value) where T : struct, Enum
-        {
-            if (value is null)
-            {
-                AddError(field, "This field is required.");
-            }
-            else if (!Enum.IsDefined(value.Value) || combinedEnumFields.Contains(JsonNamingPolicy.CamelCase.ConvertName(field)))
-            {
-                AddError(field, "Must be a defined value.");
-            }
-        }
-
-        void Range(string field, int? value, int minimum, int maximum)
-        {
-            RequiredValue(field, value);
-            if (value is not null && (value < minimum || value > maximum))
-            {
-                AddError(field, $"Must be between {minimum} and {maximum}.");
-            }
-        }
-
-        void RangeDecimal(string field, decimal? value, decimal minimum, decimal maximum)
-        {
-            RequiredValue(field, value);
-            if (value is not null && (value < minimum || value > maximum))
-            {
-                AddError(field, $"Must be between {minimum} and {maximum}.");
-            }
-        }
-
-        RequiredText(nameof(request.FullName), request.FullName, 200);
-        Range(nameof(request.Age), request.Age, 15, 120);
-        RequiredEnum(nameof(request.SleepPerNight), request.SleepPerNight);
-        Range(nameof(request.StressLevel), request.StressLevel, 1, 10);
-        RangeDecimal(nameof(request.WeightKg), request.WeightKg, 20, 500);
-        RangeDecimal(nameof(request.HeightCm), request.HeightCm, 100, 250);
-        RangeDecimal(nameof(request.WaistCm), request.WaistCm, 20, 300);
-        RangeDecimal(nameof(request.ChestCm), request.ChestCm, 20, 300);
-        RangeDecimal(nameof(request.HipCm), request.HipCm, 20, 300);
-        RequiredValue(nameof(request.CanJogComfortably), request.CanJogComfortably);
-        RequiredEnum(nameof(request.StepsPerDay), request.StepsPerDay);
-        RequiredEnum(nameof(request.TrainingDaysPerWeek), request.TrainingDaysPerWeek);
-        RequiredValue(nameof(request.IsVegetarian), request.IsVegetarian);
-        RequiredValue(nameof(request.IsPescetarian), request.IsPescetarian);
-        RequiredValue(nameof(request.IsBreastfeeding), request.IsBreastfeeding);
-        RequiredValue(nameof(request.HasAllergies), request.HasAllergies);
-        OptionalDetails(nameof(request.AllergyDetails), request.AllergyDetails, request.HasAllergies);
-        RequiredValue(nameof(request.HasInjuries), request.HasInjuries);
-        OptionalDetails(nameof(request.InjuryDetails), request.InjuryDetails, request.HasInjuries);
-        RequiredValue(nameof(request.HasTriedWeightLossBefore), request.HasTriedWeightLossBefore);
-        OptionalDetails(nameof(request.PreviousWeightLossExperience), request.PreviousWeightLossExperience, request.HasTriedWeightLossBefore);
-        RequiredEnum(nameof(request.FoodAndExerciseRelationship), request.FoodAndExerciseRelationship);
-        RequiredValue(nameof(request.HasHadEatingDisorder), request.HasHadEatingDisorder);
-        Range(nameof(request.HealthSatisfaction), request.HealthSatisfaction, 1, 10);
-        Range(nameof(request.ProgramMotivation), request.ProgramMotivation, 1, 10);
-        RequiredText(nameof(request.GoalAfterEightWeeks), request.GoalAfterEightWeeks, 2000);
-        RequiredText(nameof(request.BiggestChallenge), request.BiggestChallenge, 2000);
-        RequiredText(nameof(request.AnythingElseForCoach), request.AnythingElseForCoach, 2000);
-
-        return errors;
-
-        void OptionalDetails(string field, string? value, bool? answer)
-        {
-            if (value is { Length: > 2000 })
-            {
-                AddError(field, "Must be at most 2000 characters.");
-            }
-            else if (answer == false && value is not null)
-            {
-                AddError(field, "Must be empty when the corresponding answer is false.");
-            }
-        }
-    }
-
-    private static HashSet<string> FindCombinedEnumFields(JsonElement payload)
-    {
-        var fields = new HashSet<string>(StringComparer.Ordinal);
-        if (payload.ValueKind != JsonValueKind.Object)
-        {
-            return fields;
-        }
-
-        foreach (var property in payload.EnumerateObject())
-        {
-            var enumField = Array.Find(EnumFieldNames, field => string.Equals(field, property.Name, StringComparison.OrdinalIgnoreCase));
-            if (enumField is not null
-                && property.Value.ValueKind == JsonValueKind.String
-                && property.Value.GetString()?.Contains(',') == true)
-            {
-                fields.Add(enumField);
-            }
-        }
-
-        return fields;
+        return v.Errors;
     }
 
     private static OnboardingSubmission ToSubmission(
