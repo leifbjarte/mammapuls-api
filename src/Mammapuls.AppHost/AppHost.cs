@@ -42,8 +42,9 @@ var cosmos = builder.AddAzureCosmosDB("cosmos")
     });
 #pragma warning restore ASPIRECOSMOSDB001
 
-var users = cosmos.AddCosmosDatabase("mammapuls")
-    .AddContainer("users", "/id");
+var database = cosmos.AddCosmosDatabase("mammapuls");
+var users = database.AddContainer("users", "/id");
+var onboarding = database.AddContainer("onboarding", "/userId");
 
 var storage = builder.AddAzureStorage("storage")
     .RunAsEmulator()
@@ -68,6 +69,7 @@ builder.AddProject<Projects.Mammapuls_Api>("api")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
     .WithReference(users).WaitFor(users)
+    .WithReference(onboarding).WaitFor(onboarding)
     .WithReference(media).WaitFor(media)
     .WithReference(dataProtection).WaitFor(dataProtection)
     // Delegator is needed for user-delegation SAS on media.

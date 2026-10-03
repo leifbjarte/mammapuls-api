@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Mammapuls.Api.Auth;
+using Mammapuls.Api.Onboarding;
 using Mammapuls.Api.Users;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -49,9 +50,12 @@ public static class MeEndpoints
         ClaimsPrincipal principal,
         HttpContext context,
         IUserStore users,
+        IOnboardingStore onboarding,
         CancellationToken cancellationToken)
     {
-        await users.DeleteAsync(principal.GetUserId(), cancellationToken);
+        var userId = principal.GetUserId();
+        await onboarding.DeleteAsync(userId, cancellationToken);
+        await users.DeleteAsync(userId, cancellationToken);
         await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return TypedResults.NoContent();
     }

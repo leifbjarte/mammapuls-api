@@ -36,4 +36,44 @@ POST {{Mammapuls.Api_HttpsAddress}}/api/v1/auth/logout
 DELETE {{Mammapuls.Api_HttpsAddress}}/api/v1/me
 X-Requested-With: XMLHttpRequest
 
+### Save or replace my onboarding questionnaire — requires session cookie
+PUT {{Mammapuls.Api_HttpsAddress}}/api/v1/me/onboarding
+Content-Type: application/json
+X-Requested-With: XMLHttpRequest
+
+{
+	"fullName": "Ada Lovelace",
+	"age": 36,
+	"sleepPerNight": "sevenToEightHours",
+	"stressLevel": 4,
+	"weightKg": 72.5,
+	"heightCm": 168,
+	"waistCm": 78,
+	"chestCm": 92,
+	"hipCm": 101,
+	"canJogComfortably": true,
+	"stepsPerDay": "from5000To10000",
+	"trainingDaysPerWeek": "oneToTwo",
+	"isVegetarian": false,
+	"isPescetarian": false,
+	"isBreastfeeding": false,
+	"hasAllergies": false,
+	"allergyDetails": null,
+	"hasInjuries": false,
+	"injuryDetails": null,
+	"hasTriedWeightLossBefore": true,
+	"previousWeightLossExperience": "I have tried to build a consistent routine.",
+	"foodAndExerciseRelationship": "good",
+	"hasHadEatingDisorder": false,
+	"healthSatisfaction": 7,
+	"programMotivation": 9,
+	"goalAfterEightWeeks": "Build habits I can keep up.",
+	"biggestChallenge": "Finding time for training.",
+	"anythingElseForCoach": "Looking forward to getting started."
+}
+
+### Read my onboarding questionnaire — requires session cookie
+GET {{Mammapuls.Api_HttpsAddress}}/api/v1/me/onboarding
+Accept: application/json
+
 ###
