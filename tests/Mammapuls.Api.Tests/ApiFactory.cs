@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Xml.Linq;
 using Mammapuls.Api.Auth;
+using Mammapuls.Api.CheckIns;
 using Mammapuls.Api.Onboarding;
 using Mammapuls.Api.Users;
 using Microsoft.AspNetCore.Authentication;
@@ -29,6 +30,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
     public InMemoryUserStore Users { get; } = new();
     public InMemoryOnboardingStore Onboarding { get; } = new();
+    public InMemoryCheckInStore CheckIns { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -37,6 +39,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         // Aspire clients are only constructed on first resolve; IUserStore is faked, so they never are.
         builder.UseSetting("ConnectionStrings:users", "AccountEndpoint=https://localhost:8081/;Database=mammapuls;Container=users");
         builder.UseSetting("ConnectionStrings:onboarding", "AccountEndpoint=https://localhost:8081/;Database=mammapuls;Container=onboarding");
+        builder.UseSetting("ConnectionStrings:checkins", "AccountEndpoint=https://localhost:8081/;Database=mammapuls;Container=checkins");
         builder.UseSetting("ConnectionStrings:media", "Endpoint=https://localhost:10000/devstoreaccount1;ContainerName=media");
         builder.UseSetting("ConnectionStrings:dataprotection", "");
         builder.UseSetting("OTEL_EXPORTER_OTLP_ENDPOINT", "");
@@ -52,6 +55,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IUserStore>(Users);
             services.RemoveAll<IOnboardingStore>();
             services.AddSingleton<IOnboardingStore>(Onboarding);
+            services.RemoveAll<ICheckInStore>();
+            services.AddSingleton<ICheckInStore>(CheckIns);
 
             services.Configure<KeyManagementOptions>(options => options.XmlRepository = new InMemoryXmlRepository());
 
@@ -110,6 +115,34 @@ public sealed class InMemoryOnboardingStore : IOnboardingStore
     public Task DeleteAsync(string userId, CancellationToken cancellationToken)
     {
         submissions.TryRemove(userId, out _);
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class InMemoryCheckInStore : ICheckInStore
+{
+    private readonly ConcurrentDictionary<(string UserId, string Week), CheckInSubmission> submissions = new();
+
+    public Task<CheckInSubmission?> GetAsync(string userId, string week, CancellationToken cancellationToken) =>
+        Task.FromResult(submissions.TryGetValue((userId, week), out var submission) ? submission : null);
+
+    public Task<IReadOnlyList<CheckInSubmission>> ListAsync(string userId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<CheckInSubmission>>(
+            [.. submissions.Values.Where(s => s.UserId == userId).OrderByDescending(s => s.Week, StringComparer.Ordinal)]);
+
+    public Task<CheckInSubmission> UpsertAsync(CheckInSubmission submission, CancellationToken cancellationToken)
+    {
+        submissions[(submission.UserId, submission.Week)] = submission;
+        return Task.FromResult(submission);
+    }
+
+    public Task DeleteAllAsync(string userId, CancellationToken cancellationToken)
+    {
+        foreach (var key in submissions.Keys.Where(k => k.UserId == userId))
+        {
+            submissions.TryRemove(key, out _);
+        }
+
         return Task.CompletedTask;
     }
 }

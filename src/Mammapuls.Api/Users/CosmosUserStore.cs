@@ -3,10 +3,11 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Mammapuls.Api.Users;
 
-public sealed class CosmosUserStore(Container container, TimeProvider timeProvider) : IUserStore
+public sealed class CosmosUserStore([FromKeyedServices(UserStoreExtensions.ContainerConnectionName)] Container container, TimeProvider timeProvider) : IUserStore
 {
     // Deterministic, URL-safe, fixed-length (43 chars) id; also the partition key.
     public static string CreateId(string issuer, string subject)

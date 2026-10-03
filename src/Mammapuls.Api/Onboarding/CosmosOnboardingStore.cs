@@ -1,9 +1,10 @@
 using System.Net;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Mammapuls.Api.Onboarding;
 
-public sealed class CosmosOnboardingStore(Container container) : IOnboardingStore
+public sealed class CosmosOnboardingStore([FromKeyedServices(OnboardingStoreExtensions.ContainerConnectionName)] Container container) : IOnboardingStore
 {
     public async Task<OnboardingSubmission?> GetAsync(string userId, CancellationToken cancellationToken)
     {
