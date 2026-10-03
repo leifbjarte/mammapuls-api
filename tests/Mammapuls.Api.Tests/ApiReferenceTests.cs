@@ -84,6 +84,60 @@ public sealed class ApiReferenceTests(ApiFactory factory) : IClassFixture<ApiFac
                 && p.GetProperty("in").GetString() == "header"
                 && p.GetProperty("required").GetBoolean());
         }
+
+        var onboarding = paths.GetProperty("/api/v1/me/onboarding");
+        var getOnboarding = onboarding.GetProperty("get");
+        var putOnboarding = onboarding.GetProperty("put");
+        Assert.True(getOnboarding.TryGetProperty("security", out _));
+        Assert.True(putOnboarding.TryGetProperty("security", out _));
+        Assert.Contains(getOnboarding.GetProperty("security").EnumerateArray(), requirement => requirement.TryGetProperty("session", out _));
+        Assert.Contains(putOnboarding.GetProperty("security").EnumerateArray(), requirement => requirement.TryGetProperty("session", out _));
+        foreach (var status in new[] { "200", "401", "404" })
+        {
+            Assert.True(getOnboarding.GetProperty("responses").TryGetProperty(status, out _), $"GET is missing response {status}.");
+        }
+
+        foreach (var status in new[] { "200", "400", "401", "415" })
+        {
+            Assert.True(putOnboarding.GetProperty("responses").TryGetProperty(status, out _), $"PUT is missing response {status}.");
+        }
+
+        Assert.Contains(putOnboarding.GetProperty("parameters").EnumerateArray(), p =>
+            p.GetProperty("name").GetString() == AuthConstants.CsrfHeaderName
+            && p.GetProperty("in").GetString() == "header"
+            && p.GetProperty("required").GetBoolean());
+
+        var schemas = root.GetProperty("components").GetProperty("schemas");
+        var requestSchema = schemas.GetProperty("OnboardingRequest").GetProperty("properties");
+        foreach (var (field, enumName, expectedValue) in new[]
+        {
+            ("sleepPerNight", "SleepPerNight", "sixToSevenHours"),
+            ("stepsPerDay", "StepsPerDay", "from5000To10000"),
+            ("trainingDaysPerWeek", "TrainingDaysPerWeek", "oneToTwo"),
+            ("foodAndExerciseRelationship", "FoodAndExerciseRelationship", "difficult"),
+        })
+        {
+            var enumProperty = requestSchema.GetProperty(field);
+            string? enumReference;
+            if (enumProperty.TryGetProperty("$ref", out var directReference))
+            {
+                enumReference = directReference.GetString();
+            }
+            else
+            {
+                Assert.True(enumProperty.TryGetProperty("oneOf", out var nullableAlternatives), enumProperty.GetRawText());
+                enumReference = nullableAlternatives.EnumerateArray()
+                    .First(schema => schema.TryGetProperty("$ref", out _)).GetProperty("$ref").GetString();
+            }
+            Assert.Equal($"#/components/schemas/{enumName}", enumReference);
+            Assert.True(
+                schemas.TryGetProperty(enumName, out var enumSchema),
+                $"OpenAPI is missing {enumName}; available schemas: {string.Join(", ", schemas.EnumerateObject().Select(schema => schema.Name))}");
+            Assert.True(enumSchema.TryGetProperty("enum", out var enumValues), enumSchema.GetRawText());
+            var values = enumValues.EnumerateArray().ToArray();
+            Assert.Contains(expectedValue, values.Select(value => value.GetString()));
+            Assert.All(values, value => Assert.Equal(JsonValueKind.String, value.ValueKind));
+        }
     }
 
     private WebApplicationFactory<Program> ForEnvironment(string environment) =>

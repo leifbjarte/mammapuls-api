@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Xml.Linq;
 using Mammapuls.Api.Auth;
+using Mammapuls.Api.Onboarding;
 using Mammapuls.Api.Users;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -27,6 +28,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     public const string VippsAuthorizeEndpoint = "https://vipps.test/access-management-1.0/access/oauth2/auth";
 
     public InMemoryUserStore Users { get; } = new();
+    public InMemoryOnboardingStore Onboarding { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -34,6 +36,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
         // Aspire clients are only constructed on first resolve; IUserStore is faked, so they never are.
         builder.UseSetting("ConnectionStrings:users", "AccountEndpoint=https://localhost:8081/;Database=mammapuls;Container=users");
+        builder.UseSetting("ConnectionStrings:onboarding", "AccountEndpoint=https://localhost:8081/;Database=mammapuls;Container=onboarding");
         builder.UseSetting("ConnectionStrings:media", "Endpoint=https://localhost:10000/devstoreaccount1;ContainerName=media");
         builder.UseSetting("ConnectionStrings:dataprotection", "");
         builder.UseSetting("OTEL_EXPORTER_OTLP_ENDPOINT", "");
@@ -47,6 +50,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<IUserStore>();
             services.AddSingleton<IUserStore>(Users);
+            services.RemoveAll<IOnboardingStore>();
+            services.AddSingleton<IOnboardingStore>(Onboarding);
 
             services.Configure<KeyManagementOptions>(options => options.XmlRepository = new InMemoryXmlRepository());
 
@@ -86,6 +91,26 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             AuthConstants.UserIdClaim,
             roleType: null);
         return new AuthenticationTicket(new ClaimsPrincipal(identity), CookieAuthenticationDefaults.AuthenticationScheme);
+    }
+}
+
+public sealed class InMemoryOnboardingStore : IOnboardingStore
+{
+    private readonly ConcurrentDictionary<string, OnboardingSubmission> submissions = new();
+
+    public Task<OnboardingSubmission?> GetAsync(string userId, CancellationToken cancellationToken) =>
+        Task.FromResult(submissions.TryGetValue(userId, out var submission) ? submission : null);
+
+    public Task<OnboardingSubmission> UpsertAsync(OnboardingSubmission submission, CancellationToken cancellationToken)
+    {
+        submissions[submission.UserId] = submission;
+        return Task.FromResult(submission);
+    }
+
+    public Task DeleteAsync(string userId, CancellationToken cancellationToken)
+    {
+        submissions.TryRemove(userId, out _);
+        return Task.CompletedTask;
     }
 }
 

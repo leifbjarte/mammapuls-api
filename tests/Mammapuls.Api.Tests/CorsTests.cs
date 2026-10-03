@@ -19,6 +19,25 @@ public sealed class CorsTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Contains("DELETE", string.Join(',', response.Headers.GetValues("Access-Control-Allow-Methods")), StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task Preflight_OnboardingPut_AllowsJsonAndCsrfHeaders()
+    {
+        using var client = factory.CreateApiClient();
+        using var request = new HttpRequestMessage(HttpMethod.Options, "/api/v1/me/onboarding");
+        request.Headers.Add("Origin", ApiFactory.SpaOrigin);
+        request.Headers.Add("Access-Control-Request-Method", "PUT");
+        request.Headers.Add("Access-Control-Request-Headers", $"content-type,{AuthConstants.CsrfHeaderName.ToLowerInvariant()}");
+
+        var response = await client.SendAsync(request, Ct);
+
+        Assert.True(response.IsSuccessStatusCode, $"Status {response.StatusCode}");
+        Assert.Equal(ApiFactory.SpaOrigin, Assert.Single(response.Headers.GetValues("Access-Control-Allow-Origin")));
+        Assert.Contains("PUT", string.Join(',', response.Headers.GetValues("Access-Control-Allow-Methods")), StringComparison.OrdinalIgnoreCase);
+        var allowedHeaders = string.Join(',', response.Headers.GetValues("Access-Control-Allow-Headers"));
+        Assert.Contains("content-type", allowedHeaders, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(AuthConstants.CsrfHeaderName, allowedHeaders, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Theory]
     [InlineData("https://evil.com")]
     [InlineData("http://spa.mammapuls.test")]
