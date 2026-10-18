@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <!-- Managed by Release Please; do not edit by hand. -->
-    <Version>0.1.1</Version> <!-- x-release-please-version -->
+    <Version>0.1.2</Version> <!-- x-release-please-version -->
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
