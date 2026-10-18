@@ -9,7 +9,14 @@ var builder = DistributedApplication.CreateBuilder(args);
 // `aspire deploy --environment <Name>` sets the AppHost environment; the CLI default is Production.
 var isProduction = builder.Environment.IsProduction();
 
+// Reuse the shared Basic registry instead of paying for one per environment; override via Parameters:acr-name / Parameters:acr-resource-group.
+var acrName = builder.AddParameter("acr-name", "leifssharedacr", publishValueAsDefault: true);
+var acrResourceGroup = builder.AddParameter("acr-resource-group", "rg-common", publishValueAsDefault: true);
+var acr = builder.AddAzureContainerRegistry("acr")
+    .PublishAsExisting(acrName, acrResourceGroup);
+
 builder.AddAzureContainerAppEnvironment("aca")
+    .WithAzureContainerRegistry(acr)
     .WithDashboard(false)
     .ConfigureInfrastructure(infra =>
     {
@@ -66,9 +73,12 @@ var vippsAuthority = isProduction
     ? "https://api.vipps.no/access-management-1.0/access/"
     : "https://apitest.vipps.no/access-management-1.0/access/";
 
+#pragma warning disable ASPIREPIPELINES003 // WithRemoteImageName is experimental
 builder.AddProject<Projects.Mammapuls_Api>("api")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
+    // The registry is shared with other projects, so keep our repositories under a prefix.
+    .WithRemoteImageName("mammapuls/api")
     .WithReference(users).WaitFor(users)
     .WithReference(onboarding).WaitFor(onboarding)
     .WithReference(checkIns).WaitFor(checkIns)
@@ -95,5 +105,6 @@ builder.AddProject<Projects.Mammapuls_Api>("api")
         // The API persists DataProtection keys to the `dataprotection` blob container; drop ACA's platform key ring so there is one source.
         app.Configuration.ProvisionableProperties.Remove("AutoConfigureDataProtection");
     });
+#pragma warning restore ASPIREPIPELINES003
 
 builder.Build().Run();
