@@ -113,6 +113,8 @@ jobs:
       - name: Deploy with Aspire
         if: steps.preflight.outputs.configured == 'true'
         # The Aspire environment picks Cosmos mode (free tier vs serverless) and the Vipps authority in AppHost.cs.
+        # Images go to the shared ACR (AppHost defaults acr-name=leifssharedacr, acr-resource-group=rg-common).
+        # The deploy identity needs AcrPush + role-assignment write on that registry and deployments/write in its RG.
         run: aspire deploy --apphost src/Mammapuls.AppHost/Mammapuls.AppHost.csproj --environment "$APPHOST_ENVIRONMENT" --non-interactive
         env:
           APPHOST_ENVIRONMENT: ${{ steps.preflight.outputs.aspire-environment }}
