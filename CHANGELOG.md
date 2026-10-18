@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2](https://github.com/leifbjarte/mammapuls-api/compare/v0.1.1...v0.1.2) (2026-10-18)
+
+
+### Features
+
+* add onboarding questionnaire API replacing Google Form ([#8](https://github.com/leifbjarte/mammapuls-api/issues/8)) ([63413b0](https://github.com/leifbjarte/mammapuls-api/commit/63413b05520a73d62a0d34c37091210a21c58f5a))
+* **infra:** use shared ACR leifssharedacr for Aspire deployments ([#11](https://github.com/leifbjarte/mammapuls-api/issues/11)) ([b25fe4c](https://github.com/leifbjarte/mammapuls-api/commit/b25fe4c8548ca61b526557ab3930585b2a0da687))
+
 ## [0.1.1](https://github.com/leifbjarte/mammapuls-api/compare/v0.1.0...v0.1.1) (2026-09-29)
 
 
